@@ -62,38 +62,63 @@
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
 
+        // Performance Optimization: Cache achievement DOM elements and track pending ones
+        // to avoid O(N) DOM lookups and class manipulations on every click.
+        const achievementItems = ACHIEVEMENTS.map(ach => ({
+            ...ach,
+            element: document.getElementById(ach.id)
+        })).filter(item => item.element);
+
+        let pendingAchievements = achievementItems.filter(item => count < item.threshold);
+
+        /**
+         * Optimized achievement update:
+         * 1. Only processes achievements that are not yet unlocked.
+         * 2. Uses cached DOM elements.
+         * 3. Minimizes work in the click handler's hot path.
+         */
         function updateAchievements() {
-            ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
-                if (element) {
-                    if (count >= ach.threshold) {
-                        if (element.classList.contains('locked')) {
-                            element.classList.remove('locked');
-                            element.classList.add('unlocked');
-                            console.log(`%c✨ Achievement Unlocked: ${ach.name}`, "color: #ffd700; font-weight: bold;");
-                        }
-                    } else {
-                        element.classList.add('locked');
-                        element.classList.remove('unlocked');
-                    }
+            if (pendingAchievements.length === 0) return;
+
+            pendingAchievements = pendingAchievements.filter(ach => {
+                if (count >= ach.threshold) {
+                    ach.element.classList.replace('locked', 'unlocked');
+                    console.log(`%c✨ Achievement Unlocked: ${ach.name}`, "color: #ffd700; font-weight: bold;");
+                    return false; // Achievement unlocked, remove from pending
                 }
+                return true;
             });
         }
 
+        // Initialize display and achievement states
         if (counterDisplay) {
             counterDisplay.textContent = `Cookies Baked: ${count}`;
         }
-        updateAchievements();
+
+        // Initial achievement sync
+        achievementItems.forEach(ach => {
+            if (count >= ach.threshold) {
+                ach.element.classList.remove('locked');
+                ach.element.classList.add('unlocked');
+            } else {
+                ach.element.classList.add('locked');
+                ach.element.classList.remove('unlocked');
+            }
+        });
 
         if (cookieElement && counterDisplay) {
             cookieElement.addEventListener('click', (e) => {
+                // e.isTrusted ensures the click is user-generated
                 if (e.isTrusted) {
                     count++;
                     counterDisplay.textContent = `Cookies Baked: ${count}`;
+
+                    // Optimization: These operations are the most expensive.
+                    // updateAchievements() now runs in O(remaining_achievements) with no DOM lookups.
                     saveSecureState(count);
                     updateAchievements();
 
-                    // Micro-animation
+                    // Visual feedback
                     cookieElement.style.transform = 'scale(0.95)';
                     setTimeout(() => {
                         cookieElement.style.transform = 'scale(1)';
