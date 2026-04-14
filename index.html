@@ -3,46 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cookie Clicker</title>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-        }
-        #cookie {
-            font-size: 10rem;
-            cursor: pointer;
-            user-select: none;
-            transition: transform 0.1s;
-        }
-        #cookie:active {
-            transform: scale(0.9);
-        }
-        #counter {
-            font-size: 2rem;
-            margin-top: 20px;
-        }
-    </style>
+    <title>Alvaro's Shop | Premium Cookies</title>
+    <meta name="description" content="Discover the finest, most delicious cookies at Alvaro's Shop. Baked with love and the best ingredients.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="cookie">🍪</div>
-    <div id="counter">Clicks: 0</div>
+    <nav class="navbar">
+        <div class="logo">Alvaro's Shop</div>
+        <ul class="nav-links">
+            <li><a href="#hero">Home</a></li>
+            <li><a href="#featured">Our Cookies</a></li>
+            <li><a href="#baker">The Baker</a></li>
+        </ul>
+    </nav>
 
-    <script>
-        let count = 0;
-        const cookie = document.getElementById('cookie');
-        const counterDisplay = document.getElementById('counter');
+    <header id="hero" class="hero">
+        <div class="hero-content">
+            <h1 class="animate-up">Exquisite Cookies</h1>
+            <p class="animate-up" style="animation-delay: 0.2s;">Baked with precision, passion, and the finest ingredients. Experience the gold standard of treats.</p>
+            <a href="#featured" class="btn animate-up" style="animation-delay: 0.3s;">Explore the Collection</a>
+        </div>
+    </header>
 
-        cookie.addEventListener('click', () => {
-            count++;
-            counterDisplay.textContent = `Clicks: ${count}`;
-        });
-    </script>
+    <main>
+        <section id="featured" class="featured-section animate-up" style="animation-delay: 0.4s;">
+            <h2 class="section-title">Chef's Selection</h2>
+            <div class="product-grid">
+                <div class="product-card">
+                    <div class="product-image">🍫</div>
+                    <h3>Classic Choco</h3>
+                    <p>The timeless masterpiece.</p>
+                </div>
+                <div class="product-card">
+                    <div class="product-image">🍵</div>
+                    <h3>Matcha Dream</h3>
+                    <p>Earthy and elegant.</p>
+                </div>
+                <div class="product-card">
+                    <div class="product-image">🍪</div>
+                    <h3>Double Velvet</h3>
+                    <p>Rich, dark chocolate Bliss.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="baker" class="counter-section">
+            <h2 class="section-title">The Interactive Baker</h2>
+            <p style="margin-bottom: 2rem; color: #666;">Experience the magic of baking right here.</p>
+            <div id="cookie-container" class="animate-up" style="animation-delay: 0.5s;">
+                <div id="cookie">🍪</div>
+            </div>
+            <div id="counter" class="animate-up" style="animation-delay: 0.6s;">Cookies Baked: 0</div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2024 Alvaro's Shop. All rights reserved.</p>
+    </footer>
+
+    <script src="script.js"></script>
 </body>
 </html>
