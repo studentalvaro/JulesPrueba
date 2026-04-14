@@ -1,53 +1,107 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Helper functions for cookies
-    function setCookie(name, value, days) {
-        let expires = "";
-        if (days) {
-            const date = new Date();
-            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-            expires = "; expires=" + date.toUTCString();
+(function() {
+    'use strict';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- Security Configuration ---
+        const SECRET_SALT = "alvaro_secret_bakery_2024"; // Obfuscation salt
+        const STORAGE_KEY = "_ab_state"; // Obscure storage key
+
+        // --- Anti-Tamper Logic ---
+
+        // Simple obfuscation/hash to detect manual cookie editing
+        function generateIntegrityHash(value) {
+            let str = value + SECRET_SALT;
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0; // Convert to 32bit integer
+            }
+            return btoa(hash.toString());
         }
-        document.cookie = name + "=" + (value || "") + expires + "; path=/";
-    }
 
-    function getCookie(name) {
-        const nameEQ = name + "=";
-        const ca = document.cookie.split(';');
-        for (let i = 0; i < ca.length; i++) {
-            let c = ca[i];
-            while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+        function saveSecureState(count) {
+            const data = {
+                v: count,
+                h: generateIntegrityHash(count)
+            };
+            const encoded = btoa(JSON.stringify(data));
+            document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
         }
-        return null;
-    }
 
-    // Load initial count from cookie or default to 0
-    let count = parseInt(getCookie('cookie_clicks')) || 0;
-
-    const cookie = document.getElementById('cookie');
-    const counterDisplay = document.getElementById('counter');
-
-    // Update display with initial count
-    if (counterDisplay) {
-        counterDisplay.textContent = `Cookies Baked: ${count}`;
-    }
-
-    if (cookie && counterDisplay) {
-        cookie.addEventListener('click', () => {
-            count++;
-            counterDisplay.textContent = `Cookies Baked: ${count}`;
+        function loadSecureState() {
+            const cookies = document.cookie.split('; ');
+            const stateCookie = cookies.find(row => row.startsWith(STORAGE_KEY + '='));
             
-            // Save count to cookie (expires in 30 days)
-            setCookie('cookie_clicks', count, 30);
+            if (!stateCookie) return 0;
 
-            // Micro-animation for the cookie
-            cookie.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-                cookie.style.transform = 'scale(1)';
-            }, 100);
+            try {
+                const encoded = stateCookie.split('=')[1];
+                const data = JSON.parse(atob(encoded));
+                
+                // Verify integrity
+                if (data.h === generateIntegrityHash(data.v)) {
+                    return parseInt(data.v) || 0;
+                } else {
+                    console.error("Bakery Security: Tamper detected. Resetting state.");
+                    alert("⚠️ Manual tampering detected. The baker only accepts honest work!");
+                    return 0;
+                }
+            } catch (e) {
+                return 0;
+            }
+        }
 
-            // Creative feedback: Sparkle or particle effect could go here
-            console.log(`Baking cookie #${count}...`);
+        // --- Core Application Logic (Encapsulated) ---
+
+        let count = loadSecureState();
+        const cookieElement = document.getElementById('cookie');
+        const counterDisplay = document.getElementById('counter');
+
+        if (counterDisplay) {
+            counterDisplay.textContent = `Cookies Baked: ${count}`;
+        }
+
+        if (cookieElement && counterDisplay) {
+            cookieElement.addEventListener('click', (e) => {
+                // Basic verification to ensure it's a real user click
+                if (e.isTrusted) {
+                    count++;
+                    counterDisplay.textContent = `Cookies Baked: ${count}`;
+                    saveSecureState(count);
+
+                    // Micro-animation
+                    cookieElement.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        cookieElement.style.transform = 'scale(1)';
+                    }, 100);
+                }
+            });
+        }
+
+        // --- DevTools Protection (Deterrents) ---
+
+        // Disable Right-Click
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        // Disable common DevTools shortcuts
+        document.addEventListener('keydown', (e) => {
+            // F12
+            if (e.keyCode === 123) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+Shift+I, J, C
+            if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+U (View Source)
+            if (e.ctrlKey && e.keyCode === 85) {
+                e.preventDefault();
+                return false;
+            }
         });
-    }
-});
+
+        console.log("%cAlvaro's Bakery Security Active", "color: #5c4033; font-weight: bold; font-size: 14px;");
+    });
+})();
