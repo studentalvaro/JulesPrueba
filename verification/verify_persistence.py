@@ -30,6 +30,9 @@ def test_persistence():
             expect(counter).to_have_text("Cookies Baked: 5")
             print("Counter after 5 clicks: 5")
 
+            # Wait for debounce
+            time.sleep(1)
+
             # Reload the page
             print("Reloading page...")
             page.reload()
