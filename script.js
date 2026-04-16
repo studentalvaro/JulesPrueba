@@ -13,6 +13,19 @@
             { id: 'ach-100', threshold: 100, name: 'Master Baker' }
         ];
 
+        // --- Utils ---
+
+        /**
+         * Simple debounce to limit execution frequency of expensive operations.
+         */
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
         // --- Anti-Tamper Logic ---
 
         function generateIntegrityHash(value) {
@@ -25,14 +38,14 @@
             return btoa(hash.toString());
         }
 
-        function saveSecureState(count) {
+        const saveSecureState = debounce((count) => {
             const data = {
                 v: count,
                 h: generateIntegrityHash(count)
             };
             const encoded = btoa(JSON.stringify(data));
             document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
-        }
+        }, 500);
 
         function loadSecureState() {
             const cookies = document.cookie.split('; ');
@@ -62,21 +75,39 @@
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
 
+        // Cache achievement elements and track pending ones to avoid O(N) DOM lookups
+        const achievementState = ACHIEVEMENTS.map(ach => ({
+            ...ach,
+            element: document.getElementById(ach.id)
+        }));
+
+        let pendingAchievements = achievementState.filter(ach => count < ach.threshold);
+
+        // Initialize unlocked achievements
+        achievementState.forEach(ach => {
+            if (ach.element && count >= ach.threshold) {
+                ach.element.classList.remove('locked');
+                ach.element.classList.add('unlocked');
+            }
+        });
+
+        /**
+         * Optimized achievement check: only iterates over pending achievements.
+         * Reduces computation from O(N_total) to O(N_pending).
+         */
         function updateAchievements() {
-            ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
-                if (element) {
-                    if (count >= ach.threshold) {
-                        if (element.classList.contains('locked')) {
-                            element.classList.remove('locked');
-                            element.classList.add('unlocked');
-                            console.log(`%c✨ Achievement Unlocked: ${ach.name}`, "color: #ffd700; font-weight: bold;");
-                        }
-                    } else {
-                        element.classList.add('locked');
-                        element.classList.remove('unlocked');
+            if (pendingAchievements.length === 0) return;
+
+            pendingAchievements = pendingAchievements.filter(ach => {
+                if (count >= ach.threshold) {
+                    if (ach.element) {
+                        ach.element.classList.remove('locked');
+                        ach.element.classList.add('unlocked');
+                        console.log(`%c✨ Achievement Unlocked: ${ach.name}`, "color: #ffd700; font-weight: bold;");
                     }
+                    return false; // Remove from pending
                 }
+                return true;
             });
         }
 
