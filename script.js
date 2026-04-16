@@ -62,22 +62,47 @@
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
 
-        function updateAchievements() {
-            ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
-                if (element) {
-                    if (count >= ach.threshold) {
-                        if (element.classList.contains('locked')) {
-                            element.classList.remove('locked');
-                            element.classList.add('unlocked');
-                            console.log(`%c✨ Achievement Unlocked: ${ach.name}`, "color: #ffd700; font-weight: bold;");
-                        }
-                    } else {
-                        element.classList.add('locked');
-                        element.classList.remove('unlocked');
-                    }
+        /**
+         * PERFORMANCE OPTIMIZATION: DOM Caching & Pending List
+         * We cache the achievement elements and maintain a "pending" list to avoid
+         * O(N) document.getElementById calls and classList checks on every click.
+         * Once an achievement is unlocked, it's removed from the pending list,
+         * making future checks O(1) in the hot path.
+         */
+        let pendingAchievements = [];
+
+        // Initialize cache and pending list
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+            if (count >= ach.threshold) {
+                // Ensure correct initial state for already unlocked achievements
+                if (ach.element) {
+                    ach.element.classList.remove('locked');
+                    ach.element.classList.add('unlocked');
                 }
-            });
+            } else {
+                pendingAchievements.push(ach);
+            }
+        });
+
+        function updateAchievements() {
+            // Hot path: skip if all achievements are already unlocked
+            if (pendingAchievements.length === 0) return;
+
+            // Only iterate through achievements that haven't been unlocked yet
+            for (let i = 0; i < pendingAchievements.length; i++) {
+                const ach = pendingAchievements[i];
+                if (count >= ach.threshold) {
+                    if (ach.element) {
+                        ach.element.classList.remove('locked');
+                        ach.element.classList.add('unlocked');
+                        console.log(`%c✨ Achievement Unlocked: ${ach.name}`, "color: #ffd700; font-weight: bold;");
+                    }
+                    // Remove from pending list
+                    pendingAchievements.splice(i, 1);
+                    i--; // Adjust index after splice
+                }
+            }
         }
 
         if (counterDisplay) {
