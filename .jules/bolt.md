@@ -1,0 +1,3 @@
+## 2024-04-18 - Debouncing Cookie I/O and DOM Caching
+**Learning:** In high-frequency interactive applications (like clickers), synchronous cookie writes and repeated DOM lookups for feedback (e.g., achievements) create measurable latency. Debouncing persistence significantly improves responsiveness, but requires a `beforeunload` listener to ensure the final state is captured before navigation or reload. Caching DOM elements and maintaining "pending" lists avoids O(N) operations in the hot path.
+**Action:** Always debounce state persistence and cache DOM elements for frequently updated UI components.

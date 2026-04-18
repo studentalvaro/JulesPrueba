@@ -6,6 +6,16 @@
         const SECRET_SALT = "alvaro_secret_bakery_2024";
         const STORAGE_KEY = "_ab_state";
 
+        // --- Utility Functions ---
+
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
         // --- Achievements Configuration ---
         const ACHIEVEMENTS = [
             { id: 'ach-10', threshold: 10, name: 'Rookie' },
@@ -62,21 +72,26 @@
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
 
+        // Cache achievement elements
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+        });
+
+        // Track pending achievements
+        let pendingAchievements = ACHIEVEMENTS.filter(ach =>
+            !ach.element || ach.element.classList.contains('locked')
+        );
+
         function updateAchievements() {
-            ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
-                if (element) {
-                    if (count >= ach.threshold) {
-                        if (element.classList.contains('locked')) {
-                            element.classList.remove('locked');
-                            element.classList.add('unlocked');
-                            console.log(`%c✨ Achievement Unlocked: ${ach.name}`, "color: #ffd700; font-weight: bold;");
-                        }
-                    } else {
-                        element.classList.add('locked');
-                        element.classList.remove('unlocked');
-                    }
+            pendingAchievements = pendingAchievements.filter(ach => {
+                const element = ach.element;
+                if (element && count >= ach.threshold) {
+                    element.classList.remove('locked');
+                    element.classList.add('unlocked');
+                    console.log(`%c✨ Achievement Unlocked: ${ach.name}`, "color: #ffd700; font-weight: bold;");
+                    return false; // Remove from pending
                 }
+                return true; // Keep in pending
             });
         }
 
@@ -85,12 +100,18 @@
         }
         updateAchievements();
 
+        const debouncedSaveState = debounce((c) => saveSecureState(c), 500);
+
+        window.addEventListener('beforeunload', () => {
+            saveSecureState(count);
+        });
+
         if (cookieElement && counterDisplay) {
             cookieElement.addEventListener('click', (e) => {
                 if (e.isTrusted) {
                     count++;
                     counterDisplay.textContent = `Cookies Baked: ${count}`;
-                    saveSecureState(count);
+                    debouncedSaveState(count);
                     updateAchievements();
 
                     // Micro-animation
