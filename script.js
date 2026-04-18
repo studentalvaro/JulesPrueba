@@ -34,6 +34,24 @@
             document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
         }
 
+        /**
+         * Debounce function to limit expensive operations
+         */
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Debounced version of saveSecureState to reduce cookie writes during rapid clicks
+        const debouncedSaveState = debounce(saveSecureState, 500);
+
         function loadSecureState() {
             const cookies = document.cookie.split('; ');
             const stateCookie = cookies.find(row => row.startsWith(STORAGE_KEY + '='));
@@ -90,7 +108,8 @@
                 if (e.isTrusted) {
                     count++;
                     counterDisplay.textContent = `Cookies Baked: ${count}`;
-                    saveSecureState(count);
+                    // Performance Optimization: Debounce cookie writes to reduce overhead during rapid clicking
+                    debouncedSaveState(count);
                     updateAchievements();
 
                     // Micro-animation
@@ -101,6 +120,11 @@
                 }
             });
         }
+
+        // Ensure state is saved immediately when navigating away
+        window.addEventListener('beforeunload', () => {
+            saveSecureState(count);
+        });
 
         // --- DevTools Protection ---
 
