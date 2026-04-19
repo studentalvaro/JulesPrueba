@@ -56,11 +56,26 @@
             }
         }
 
+        // --- Utility Functions ---
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
         // --- Core Application Logic ---
 
         let count = loadSecureState();
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
+        const debouncedSaveState = debounce(saveSecureState, 1000);
 
         function updateAchievements() {
             ACHIEVEMENTS.forEach(ach => {
@@ -90,7 +105,7 @@
                 if (e.isTrusted) {
                     count++;
                     counterDisplay.textContent = `Cookies Baked: ${count}`;
-                    saveSecureState(count);
+                    debouncedSaveState(count);
                     updateAchievements();
 
                     // Micro-animation
@@ -101,6 +116,12 @@
                 }
             });
         }
+
+        // --- Persistence on Exit ---
+
+        window.addEventListener('beforeunload', () => {
+            saveSecureState(count);
+        });
 
         // --- DevTools Protection ---
 
