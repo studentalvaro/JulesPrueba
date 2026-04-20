@@ -1,0 +1,3 @@
+## 2024-05-15 - Debouncing Persistence in High-Frequency Event Handlers
+**Learning:** In interactive applications like clicker games, performing synchronous I/O (like writing to `document.cookie`) and expensive computations (like generating integrity hashes) on every event can lead to performance degradation and unnecessary resource usage. Debouncing these operations significantly reduces the overhead while maintaining data integrity.
+**Action:** Always consider debouncing persistence or expensive state updates in high-frequency event handlers. Ensure a `beforeunload` listener is present to capture the final state if the user leaves before the debounce timer fires.
