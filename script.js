@@ -25,13 +25,29 @@
             return btoa(hash.toString());
         }
 
-        function saveSecureState(count) {
-            const data = {
-                v: count,
-                h: generateIntegrityHash(count)
+        let debounceTimer = null;
+        /**
+         * Persists the current cookie count to a secure, hashed cookie.
+         * Optimized with debouncing to prevent excessive cookie writes and hash calculations during rapid clicking.
+         */
+        function saveSecureState(currentCount, immediate = false) {
+            if (debounceTimer) clearTimeout(debounceTimer);
+
+            const performSave = () => {
+                const data = {
+                    v: currentCount,
+                    h: generateIntegrityHash(currentCount)
+                };
+                const encoded = btoa(JSON.stringify(data));
+                document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+                debounceTimer = null;
             };
-            const encoded = btoa(JSON.stringify(data));
-            document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+
+            if (immediate) {
+                performSave();
+            } else {
+                debounceTimer = setTimeout(performSave, 1000);
+            }
         }
 
         function loadSecureState() {
@@ -79,6 +95,11 @@
                 }
             });
         }
+
+        // Ensure final state is saved when leaving the page
+        window.addEventListener('beforeunload', () => {
+            saveSecureState(count, true);
+        });
 
         if (counterDisplay) {
             counterDisplay.textContent = `Cookies Baked: ${count}`;
