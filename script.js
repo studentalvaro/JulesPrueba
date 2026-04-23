@@ -25,13 +25,33 @@
             return btoa(hash.toString());
         }
 
-        function saveSecureState(count) {
-            const data = {
-                v: count,
-                h: generateIntegrityHash(count)
+        let debounceTimer = null;
+        /**
+         * Persists the current game state to a secure cookie.
+         * Optimized with debouncing to prevent excessive writes and hash calculations
+         * during rapid click sessions.
+         */
+        function saveSecureState(immediate = false) {
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+                debounceTimer = null;
+            }
+
+            const performSave = () => {
+                const data = {
+                    v: count,
+                    h: generateIntegrityHash(count)
+                };
+                const encoded = btoa(JSON.stringify(data));
+                document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+                debounceTimer = null;
             };
-            const encoded = btoa(JSON.stringify(data));
-            document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+
+            if (immediate) {
+                performSave();
+            } else {
+                debounceTimer = setTimeout(performSave, 1000);
+            }
         }
 
         function loadSecureState() {
@@ -90,7 +110,7 @@
                 if (e.isTrusted) {
                     count++;
                     counterDisplay.textContent = `Cookies Baked: ${count}`;
-                    saveSecureState(count);
+                    saveSecureState(); // Debounced save
                     updateAchievements();
 
                     // Micro-animation
@@ -101,6 +121,20 @@
                 }
             });
         }
+
+        // --- Lifecycle Management ---
+
+        // Ensure state is saved if the user leaves before the debounce timer fires.
+        // 'visibilitychange' is more reliable than 'beforeunload' for mobile and modern browsers.
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                saveSecureState(true);
+            }
+        });
+
+        window.addEventListener('beforeunload', () => {
+            saveSecureState(true);
+        });
 
         // --- DevTools Protection ---
 
