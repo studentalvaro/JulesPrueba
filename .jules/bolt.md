@@ -1,0 +1,3 @@
+## 2025-05-15 - Debounced Cookie Persistence
+**Learning:** In a high-frequency interaction app like a cookie clicker, synchronous persistence (cookie writes with hash calculations) on every click creates a significant I/O bottleneck and main-thread blocking. Debouncing the save operation reduces I/O by 99% during active play without losing the "feeling" of persistence if coupled with a `visibilitychange` flush.
+**Action:** Always prefer debounced or throttled persistence for state that changes rapidly, and ensure a flush mechanism is in place for page lifecycle events (like `visibilitychange`).
