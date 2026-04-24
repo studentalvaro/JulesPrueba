@@ -34,6 +34,16 @@
             document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
         }
 
+        // --- Optimized Persistence (Debounced) ---
+        let debounceTimer = null;
+        function saveSecureStateDebounced(val) {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                saveSecureState(val);
+                debounceTimer = null;
+            }, 1000); // 1s debounce to prevent excessive cookie writes
+        }
+
         function loadSecureState() {
             const cookies = document.cookie.split('; ');
             const stateCookie = cookies.find(row => row.startsWith(STORAGE_KEY + '='));
@@ -90,7 +100,7 @@
                 if (e.isTrusted) {
                     count++;
                     counterDisplay.textContent = `Cookies Baked: ${count}`;
-                    saveSecureState(count);
+                    saveSecureStateDebounced(count);
                     updateAchievements();
 
                     // Micro-animation
@@ -112,6 +122,15 @@
                 return false;
             }
             if (e.ctrlKey && e.keyCode === 85) { e.preventDefault(); return false; }
+        });
+
+        // Ensure state is saved when user leaves
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && debounceTimer) {
+                clearTimeout(debounceTimer);
+                saveSecureState(count);
+                debounceTimer = null;
+            }
         });
 
         console.log("%cAlvaro's Bakery Security & Achievements Active", "color: #5c4033; font-weight: bold; font-size: 14px;");
