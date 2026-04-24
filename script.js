@@ -62,19 +62,41 @@
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
 
+        // Persistence Debouncing
+        let debounceTimer = null;
+        function saveSecureStateDebounced(value) {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                saveSecureState(value);
+                debounceTimer = null;
+            }, 1000);
+        }
+
+        // Ensure final state is saved on exit
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                if (debounceTimer) {
+                    clearTimeout(debounceTimer);
+                    saveSecureState(count);
+                    debounceTimer = null;
+                }
+            }
+        });
+
+        // Cache achievement elements and status
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+            ach.unlocked = ach.element ? ach.element.classList.contains('unlocked') : false;
+        });
+
         function updateAchievements() {
             ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
-                if (element) {
+                if (ach.element && !ach.unlocked) {
                     if (count >= ach.threshold) {
-                        if (element.classList.contains('locked')) {
-                            element.classList.remove('locked');
-                            element.classList.add('unlocked');
-                            console.log(`%c✨ Achievement Unlocked: ${ach.name}`, "color: #ffd700; font-weight: bold;");
-                        }
-                    } else {
-                        element.classList.add('locked');
-                        element.classList.remove('unlocked');
+                        ach.element.classList.remove('locked');
+                        ach.element.classList.add('unlocked');
+                        ach.unlocked = true;
+                        console.log(`%c✨ Achievement Unlocked: ${ach.name}`, "color: #ffd700; font-weight: bold;");
                     }
                 }
             });
@@ -90,7 +112,7 @@
                 if (e.isTrusted) {
                     count++;
                     counterDisplay.textContent = `Cookies Baked: ${count}`;
-                    saveSecureState(count);
+                    saveSecureStateDebounced(count);
                     updateAchievements();
 
                     // Micro-animation
