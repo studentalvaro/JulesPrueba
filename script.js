@@ -8,10 +8,15 @@
 
         // --- Achievements Configuration ---
         const ACHIEVEMENTS = [
-            { id: 'ach-10', threshold: 10, name: 'Rookie' },
-            { id: 'ach-50', threshold: 50, name: 'Apprentice' },
-            { id: 'ach-100', threshold: 100, name: 'Master Baker' }
+            { id: 'ach-10', threshold: 10, name: 'Rookie', element: null },
+            { id: 'ach-50', threshold: 50, name: 'Apprentice', element: null },
+            { id: 'ach-100', threshold: 100, name: 'Master Baker', element: null }
         ];
+
+        // Initialize achievement elements
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+        });
 
         // --- Anti-Tamper Logic ---
 
@@ -25,7 +30,28 @@
             return btoa(hash.toString());
         }
 
-        function saveSecureState(count) {
+        // Performance Optimization: Debounce cookie writes to reduce I/O and CPU overhead
+        // during rapid clicking.
+        let debounceTimer = null;
+        function saveSecureState(countValue) {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const data = {
+                    v: countValue,
+                    h: generateIntegrityHash(countValue)
+                };
+                const encoded = btoa(JSON.stringify(data));
+                document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+                debounceTimer = null;
+            }, 1000);
+        }
+
+        // Force immediate save for persistence when leaving the page
+        function saveImmediately() {
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+                debounceTimer = null;
+            }
             const data = {
                 v: count,
                 h: generateIntegrityHash(count)
@@ -62,9 +88,10 @@
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
 
+        // Performance Optimization: Use cached DOM elements to avoid repeated lookups
         function updateAchievements() {
             ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
+                const element = ach.element;
                 if (element) {
                     if (count >= ach.threshold) {
                         if (element.classList.contains('locked')) {
@@ -113,6 +140,15 @@
             }
             if (e.ctrlKey && e.keyCode === 85) { e.preventDefault(); return false; }
         });
+
+        // Ensure state is persisted when user navigates away or closes the tab
+        window.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                saveImmediately();
+            }
+        });
+
+        window.addEventListener('beforeunload', saveImmediately);
 
         console.log("%cAlvaro's Bakery Security & Achievements Active", "color: #5c4033; font-weight: bold; font-size: 14px;");
     });
