@@ -8,9 +8,9 @@
 
         // --- Achievements Configuration ---
         const ACHIEVEMENTS = [
-            { id: 'ach-10', threshold: 10, name: 'Rookie' },
-            { id: 'ach-50', threshold: 50, name: 'Apprentice' },
-            { id: 'ach-100', threshold: 100, name: 'Master Baker' }
+            { id: 'ach-10', threshold: 10, name: 'Rookie', element: null },
+            { id: 'ach-50', threshold: 50, name: 'Apprentice', element: null },
+            { id: 'ach-100', threshold: 100, name: 'Master Baker', element: null }
         ];
 
         // --- Anti-Tamper Logic ---
@@ -59,12 +59,27 @@
         // --- Core Application Logic ---
 
         let count = loadSecureState();
+        let debounceTimer = null;
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
 
+        // Debounced save function to reduce expensive cookie writes and hash calculations
+        function saveSecureStateDebounced(value) {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                saveSecureState(value);
+                debounceTimer = null;
+            }, 1000);
+        }
+
+        // Cache achievement elements to avoid repeated DOM lookups
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+        });
+
         function updateAchievements() {
             ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
+                const element = ach.element;
                 if (element) {
                     if (count >= ach.threshold) {
                         if (element.classList.contains('locked')) {
@@ -90,7 +105,7 @@
                 if (e.isTrusted) {
                     count++;
                     counterDisplay.textContent = `Cookies Baked: ${count}`;
-                    saveSecureState(count);
+                    saveSecureStateDebounced(count);
                     updateAchievements();
 
                     // Micro-animation
@@ -112,6 +127,17 @@
                 return false;
             }
             if (e.ctrlKey && e.keyCode === 85) { e.preventDefault(); return false; }
+        });
+
+        // Ensure state is saved when the user leaves the page or switches tabs
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                if (debounceTimer) {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = null;
+                }
+                saveSecureState(count);
+            }
         });
 
         console.log("%cAlvaro's Bakery Security & Achievements Active", "color: #5c4033; font-weight: bold; font-size: 14px;");
