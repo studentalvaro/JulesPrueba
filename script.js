@@ -13,6 +13,11 @@
             { id: 'ach-100', threshold: 100, name: 'Master Baker' }
         ];
 
+        // Cache achievement elements to avoid repeated DOM lookups
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+        });
+
         // --- Anti-Tamper Logic ---
 
         function generateIntegrityHash(value) {
@@ -25,13 +30,22 @@
             return btoa(hash.toString());
         }
 
+        // Debounce timer for secure state saving
+        let debounceTimer = null;
+
         function saveSecureState(count) {
-            const data = {
-                v: count,
-                h: generateIntegrityHash(count)
-            };
-            const encoded = btoa(JSON.stringify(data));
-            document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+            // Optimization: Debounce cookie writes to reduce main thread blocking
+            if (debounceTimer) clearTimeout(debounceTimer);
+
+            debounceTimer = setTimeout(() => {
+                const data = {
+                    v: count,
+                    h: generateIntegrityHash(count)
+                };
+                const encoded = btoa(JSON.stringify(data));
+                document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+                debounceTimer = null;
+            }, 1000); // 1s debounce
         }
 
         function loadSecureState() {
@@ -64,7 +78,7 @@
 
         function updateAchievements() {
             ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
+                const element = ach.element; // Use cached element
                 if (element) {
                     if (count >= ach.threshold) {
                         if (element.classList.contains('locked')) {
@@ -101,6 +115,21 @@
                 }
             });
         }
+
+        // Ensure state is saved when user leaves the page
+        window.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && debounceTimer) {
+                clearTimeout(debounceTimer);
+                // Immediate save
+                const data = {
+                    v: count,
+                    h: generateIntegrityHash(count)
+                };
+                const encoded = btoa(JSON.stringify(data));
+                document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+                debounceTimer = null;
+            }
+        });
 
         // --- DevTools Protection ---
 
