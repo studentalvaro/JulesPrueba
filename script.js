@@ -13,6 +13,11 @@
             { id: 'ach-100', threshold: 100, name: 'Master Baker' }
         ];
 
+        // Cache DOM elements to avoid repeated lookups during click events
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+        });
+
         // --- Anti-Tamper Logic ---
 
         function generateIntegrityHash(value) {
@@ -25,13 +30,19 @@
             return btoa(hash.toString());
         }
 
+        let debounceTimer = null;
         function saveSecureState(count) {
-            const data = {
-                v: count,
-                h: generateIntegrityHash(count)
-            };
-            const encoded = btoa(JSON.stringify(data));
-            document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+            // Debounce cookie writes to reduce I/O and CPU overhead during rapid clicking
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const data = {
+                    v: count,
+                    h: generateIntegrityHash(count)
+                };
+                const encoded = btoa(JSON.stringify(data));
+                document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+                debounceTimer = null;
+            }, 1000);
         }
 
         function loadSecureState() {
@@ -64,7 +75,7 @@
 
         function updateAchievements() {
             ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
+                const element = ach.element;
                 if (element) {
                     if (count >= ach.threshold) {
                         if (element.classList.contains('locked')) {
@@ -79,6 +90,20 @@
                 }
             });
         }
+
+        // Ensure state is persisted when the user leaves the page, bypassing the debounce
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && debounceTimer) {
+                clearTimeout(debounceTimer);
+                const data = {
+                    v: count,
+                    h: generateIntegrityHash(count)
+                };
+                const encoded = btoa(JSON.stringify(data));
+                document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+                debounceTimer = null;
+            }
+        });
 
         if (counterDisplay) {
             counterDisplay.textContent = `Cookies Baked: ${count}`;
