@@ -1,0 +1,3 @@
+## 2024-05-20 - Debouncing Persistence and DOM Caching
+**Learning:** High-frequency event handlers (like a clicker game) suffer significantly from synchronous I/O (cookies) and DOM lookups. Debouncing the persistence layer reduces the overhead of expensive operations (hashing, base64 encoding, cookie writes). However, debouncing state requires a 'visibilitychange' listener to ensure data isn't lost when the user closes the tab before the timer fires.
+**Action:** Always cache DOM elements outside of high-frequency loops. Implement debounced persistence with a 'visibilitychange' fallback for reliable state management.

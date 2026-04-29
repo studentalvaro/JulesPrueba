@@ -62,9 +62,14 @@
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
 
+        // Performance Optimization: Cache achievement elements to avoid repeated DOM lookups
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+        });
+
         function updateAchievements() {
             ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
+                const element = ach.element;
                 if (element) {
                     if (count >= ach.threshold) {
                         if (element.classList.contains('locked')) {
@@ -80,6 +85,26 @@
             });
         }
 
+        // Performance Optimization: Debounce cookie writes to reduce I/O and hashing overhead
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        const debouncedSaveState = debounce((val) => {
+            saveSecureState(val);
+        }, 1000);
+
+        // Ensure state is saved when leaving the page
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                saveSecureState(count);
+            }
+        });
+
         if (counterDisplay) {
             counterDisplay.textContent = `Cookies Baked: ${count}`;
         }
@@ -90,7 +115,7 @@
                 if (e.isTrusted) {
                     count++;
                     counterDisplay.textContent = `Cookies Baked: ${count}`;
-                    saveSecureState(count);
+                    debouncedSaveState(count);
                     updateAchievements();
 
                     // Micro-animation
