@@ -25,14 +25,36 @@
             return btoa(hash.toString());
         }
 
+        let debounceTimer = null;
         function saveSecureState(count) {
-            const data = {
-                v: count,
-                h: generateIntegrityHash(count)
-            };
-            const encoded = btoa(JSON.stringify(data));
-            document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+            // Debounce cookie writes to 1000ms to avoid expensive I/O and hash calculations on every click
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+            }
+            debounceTimer = setTimeout(() => {
+                const data = {
+                    v: count,
+                    h: generateIntegrityHash(count)
+                };
+                const encoded = btoa(JSON.stringify(data));
+                document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+                debounceTimer = null;
+            }, 1000);
         }
+
+        // Ensure final state is saved when the user leaves or reloads
+        window.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && debounceTimer) {
+                clearTimeout(debounceTimer);
+                const data = {
+                    v: count,
+                    h: generateIntegrityHash(count)
+                };
+                const encoded = btoa(JSON.stringify(data));
+                document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+                debounceTimer = null;
+            }
+        });
 
         function loadSecureState() {
             const cookies = document.cookie.split('; ');
@@ -62,9 +84,14 @@
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
 
+        // Cache achievement elements to avoid repeated DOM lookups
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+        });
+
         function updateAchievements() {
             ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
+                const element = ach.element;
                 if (element) {
                     if (count >= ach.threshold) {
                         if (element.classList.contains('locked')) {
