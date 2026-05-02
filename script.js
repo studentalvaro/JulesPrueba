@@ -25,13 +25,23 @@
             return btoa(hash.toString());
         }
 
-        function saveSecureState(count) {
+        function saveSecureState(countValue) {
             const data = {
-                v: count,
-                h: generateIntegrityHash(count)
+                v: countValue,
+                h: generateIntegrityHash(countValue)
             };
             const encoded = btoa(JSON.stringify(data));
             document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+        }
+
+        // ⚡ Bolt: Debounce persistence to reduce expensive cookie writes and hash calculations.
+        let debounceTimer = null;
+        function debouncedSaveSecureState(currentCount) {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                saveSecureState(currentCount);
+                debounceTimer = null;
+            }, 1000);
         }
 
         function loadSecureState() {
@@ -62,9 +72,14 @@
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
 
+        // ⚡ Bolt: Cache DOM elements for achievements to avoid repeated document.getElementById calls.
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+        });
+
         function updateAchievements() {
             ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
+                const element = ach.element;
                 if (element) {
                     if (count >= ach.threshold) {
                         if (element.classList.contains('locked')) {
@@ -90,7 +105,9 @@
                 if (e.isTrusted) {
                     count++;
                     counterDisplay.textContent = `Cookies Baked: ${count}`;
-                    saveSecureState(count);
+
+                    // ⚡ Bolt: Use debounced save to improve performance during rapid clicking.
+                    debouncedSaveSecureState(count);
                     updateAchievements();
 
                     // Micro-animation
@@ -101,6 +118,15 @@
                 }
             });
         }
+
+        // ⚡ Bolt: Ensure final state is saved even if user leaves before debounce timer finishes.
+        window.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && debounceTimer) {
+                clearTimeout(debounceTimer);
+                saveSecureState(count);
+                debounceTimer = null;
+            }
+        });
 
         // --- DevTools Protection ---
 
