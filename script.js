@@ -8,10 +8,15 @@
 
         // --- Achievements Configuration ---
         const ACHIEVEMENTS = [
-            { id: 'ach-10', threshold: 10, name: 'Rookie' },
-            { id: 'ach-50', threshold: 50, name: 'Apprentice' },
-            { id: 'ach-100', threshold: 100, name: 'Master Baker' }
+            { id: 'ach-10', threshold: 10, name: 'Rookie', element: null },
+            { id: 'ach-50', threshold: 50, name: 'Apprentice', element: null },
+            { id: 'ach-100', threshold: 100, name: 'Master Baker', element: null }
         ];
+
+        // Initialize achievement elements
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+        });
 
         // --- Anti-Tamper Logic ---
 
@@ -25,13 +30,24 @@
             return btoa(hash.toString());
         }
 
-        function saveSecureState(count) {
+        let debounceTimer = null;
+
+        function commitStateToCookie(count) {
             const data = {
                 v: count,
                 h: generateIntegrityHash(count)
             };
             const encoded = btoa(JSON.stringify(data));
             document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+        }
+
+        function saveSecureState(count) {
+            // Debounce cookie writes to reduce I/O and CPU overhead during rapid clicking
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                commitStateToCookie(count);
+                debounceTimer = null;
+            }, 1000);
         }
 
         function loadSecureState() {
@@ -63,8 +79,9 @@
         const counterDisplay = document.getElementById('counter');
 
         function updateAchievements() {
+            // Use cached DOM elements to avoid expensive lookups on every click
             ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
+                const element = ach.element;
                 if (element) {
                     if (count >= ach.threshold) {
                         if (element.classList.contains('locked')) {
@@ -112,6 +129,15 @@
                 return false;
             }
             if (e.ctrlKey && e.keyCode === 85) { e.preventDefault(); return false; }
+        });
+
+        // Ensure state is saved when the user leaves the page or switches tabs
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && debounceTimer) {
+                clearTimeout(debounceTimer);
+                commitStateToCookie(count);
+                debounceTimer = null;
+            }
         });
 
         console.log("%cAlvaro's Bakery Security & Achievements Active", "color: #5c4033; font-weight: bold; font-size: 14px;");
