@@ -25,14 +25,34 @@
             return btoa(hash.toString());
         }
 
+        let debounceTimer = null;
         function saveSecureState(count) {
-            const data = {
-                v: count,
-                h: generateIntegrityHash(count)
-            };
-            const encoded = btoa(JSON.stringify(data));
-            document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+            // Performance: Debounce cookie writes to avoid expensive I/O and hash calculations
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const data = {
+                    v: count,
+                    h: generateIntegrityHash(count)
+                };
+                const encoded = btoa(JSON.stringify(data));
+                document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+                debounceTimer = null;
+            }, 1000);
         }
+
+        // Ensure state is saved when the user leaves the page
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && debounceTimer) {
+                clearTimeout(debounceTimer);
+                const data = {
+                    v: count,
+                    h: generateIntegrityHash(count)
+                };
+                const encoded = btoa(JSON.stringify(data));
+                document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+                debounceTimer = null;
+            }
+        });
 
         function loadSecureState() {
             const cookies = document.cookie.split('; ');
@@ -59,12 +79,18 @@
         // --- Core Application Logic ---
 
         let count = loadSecureState();
+        // Performance: Cache DOM elements to avoid repeated lookups during high-frequency events
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
 
+        // Pre-cache achievement elements
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+        });
+
         function updateAchievements() {
             ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
+                const element = ach.element;
                 if (element) {
                     if (count >= ach.threshold) {
                         if (element.classList.contains('locked')) {
