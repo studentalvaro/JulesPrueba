@@ -8,9 +8,9 @@
 
         // --- Achievements Configuration ---
         const ACHIEVEMENTS = [
-            { id: 'ach-10', threshold: 10, name: 'Rookie' },
-            { id: 'ach-50', threshold: 50, name: 'Apprentice' },
-            { id: 'ach-100', threshold: 100, name: 'Master Baker' }
+            { id: 'ach-10', threshold: 10, name: 'Rookie', element: null },
+            { id: 'ach-50', threshold: 50, name: 'Apprentice', element: null },
+            { id: 'ach-100', threshold: 100, name: 'Master Baker', element: null }
         ];
 
         // --- Anti-Tamper Logic ---
@@ -25,7 +25,27 @@
             return btoa(hash.toString());
         }
 
+        // BOLT OPTIMIZATION: Debounce cookie writes to reduce I/O and hash calculations
+        let debounceTimer = null;
         function saveSecureState(count) {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const data = {
+                    v: count,
+                    h: generateIntegrityHash(count)
+                };
+                const encoded = btoa(JSON.stringify(data));
+                document.cookie = `${STORAGE_KEY}=${encoded}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/; SameSite=Strict`;
+                debounceTimer = null;
+            }, 1000);
+        }
+
+        // BOLT OPTIMIZATION: Immediate save for critical lifecycle events
+        function saveSecureStateImmediate(count) {
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+                debounceTimer = null;
+            }
             const data = {
                 v: count,
                 h: generateIntegrityHash(count)
@@ -59,12 +79,19 @@
         // --- Core Application Logic ---
 
         let count = loadSecureState();
+
+        // BOLT OPTIMIZATION: Cache DOM elements to avoid repeated lookups
         const cookieElement = document.getElementById('cookie');
         const counterDisplay = document.getElementById('counter');
 
+        // Initialize achievement elements
+        ACHIEVEMENTS.forEach(ach => {
+            ach.element = document.getElementById(ach.id);
+        });
+
         function updateAchievements() {
             ACHIEVEMENTS.forEach(ach => {
-                const element = document.getElementById(ach.id);
+                const element = ach.element;
                 if (element) {
                     if (count >= ach.threshold) {
                         if (element.classList.contains('locked')) {
@@ -101,6 +128,13 @@
                 }
             });
         }
+
+        // BOLT OPTIMIZATION: Ensure data is saved when user leaves
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                saveSecureStateImmediate(count);
+            }
+        });
 
         // --- DevTools Protection ---
 
